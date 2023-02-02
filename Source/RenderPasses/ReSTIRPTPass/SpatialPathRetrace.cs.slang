@@ -117,15 +117,12 @@ struct PathRetracePass
         // Compute offset into per-sample buffers. All samples are stored consecutively at this offset.
         const uint centralOffset = params.getReservoirOffset(pixel);
         PathReservoir centralReservoir = outputReservoirs[centralOffset];
+
         PackedHitInfo centralPrimaryHitPacked;
         ShadingData centralPrimarySd = getPixelShadingData(pixel, centralPrimaryHitPacked);
         if (!isValidPackedHitInfo(centralPrimaryHitPacked)) return;
 
-        uint2 chosenPixel = pixel;
-        int chosen_i = -1;
-        float3 color = 0.f;
         int neighborCount = getNeighborCount();
-
         const uint startIndex = sampleNext1D(sg) * kNeighborOffsetCount;
 
         for (int i = 0; i < neighborCount; ++i)

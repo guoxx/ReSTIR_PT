@@ -37,20 +37,10 @@ struct PathBuilder
         this.sg = TinyUniformSampleGenerator(jenkinsHash(sg.next()));
         rcVertexWi[0] = float3(0.f);
         rcVertexHit.instanceID = 0xffffffff;
-#if BPR
-        rcVertexWi[1] = float3(0.f);
-#endif
     }
 
     void finalize(inout PathReservoir pathReservoir)
     {
-#if BPR
-        pathReservoir.weight = PathReservoir::toScalar(pathReservoir.F);
-
-        // when kNEESamples == 1, we can use cachedJacobian slot to store NEE contribution so that we don't need to recompute in reuse
-        if (any(pathReservoir.rcVertexIrradiance[1] > 0.f)) pathReservoir.F -= pathReservoir.cachedJacobian;
-        else pathReservoir.cachedJacobian = 0.f;
-#endif
         pathReservoir.M = 1;
     }
 
@@ -64,26 +54,6 @@ struct PathBuilder
         {
             bool is_rcVertex = pathLength == rcVertexLength;
 
-#if BPR
-            pathReservoir.F += pathWeight;
-
-            if (is_rcVertex)
-            {
-                pathReservoir.rcVertexBSDFLightSamplingIrradiance = postfixWeight / misWeight;
-                pathReservoir.lightPdf = lightPdf;
-                pathReservoir.rcVertexWi[0] = wi;
-            }
-            else
-            {
-                pathReservoir.rcVertexWi[0] = rcVertexWi[0];
-                pathReservoir.rcVertexIrradiance[0] = postfixWeight;
-            }
-            pathReservoir.rcVertexHit = rcVertexHit;
-
-            pathReservoir.pathFlags = pathFlags;
-            pathReservoir.pathFlags.insertPathLength(pathLength); // excluding the NEE vertex
-            pathReservoir.pathFlags.insertRcVertexLength(rcVertexLength);
-#else
             if (forceAdd || pathReservoir.add(pathWeight, russianroulettePDF, sg))
             {
                 selected = true;
@@ -108,7 +78,6 @@ struct PathBuilder
                 pathReservoir.lightPdf = lightPdf;
                 pathReservoir.pathFlags.insertLightType(lightType);
             }
-#endif
         }
 
         return selected;
@@ -124,31 +93,6 @@ struct PathBuilder
         {
             bool is_rcVertex = pathLength == rcVertexLength;
 
-#if BPR
-            pathReservoir.F += pathWeight;
-
-            if (is_rcVertex)
-            {
-                pathReservoir.cachedJacobian = pathWeight;
-                pathReservoir.rcVertexIrradiance[1] = postfixWeight * lightPdf / misWeight;
-                pathReservoir.insertRcLightType(lightType);
-                pathReservoir.rcLightPdf = lightPdf;
-                pathReservoir.rcVertexWi[1] = wi;
-
-            }
-            else
-            {
-                pathReservoir.rcVertexWi[0] = rcVertexWi[0];
-                pathReservoir.rcVertexIrradiance[0] = postfixWeight;
-            }
-            pathReservoir.rcVertexHit = rcVertexHit;
-
-            pathReservoir.pathFlags = pathFlags;
-            pathReservoir.pathFlags.insertPathLength(pathLength); // excluding the NEE vertex
-            pathReservoir.pathFlags.insertRcVertexLength(rcVertexLength);
-
-            selected = true;
-#else
             if (forceAdd || pathReservoir.add(pathWeight, russianroulettePDF, sg))
             {
                 selected = true;
@@ -173,7 +117,6 @@ struct PathBuilder
                 pathReservoir.lightPdf = lightPdf;
                 pathReservoir.pathFlags.insertLightType(lightType);
             }
-#endif
         }
 
         return selected;
